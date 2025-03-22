@@ -1,0 +1,12 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: AppointmentServicePublisher
+Bundle-SymbolicName: AppointmentServicePublisher
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: com.appointmentServicePublisher.Activator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: AppointmentServicePublisher
+Import-Package: com.hospital.core.database,
+ org.osgi.framework;version="1.3.0"
+Bundle-ActivationPolicy: lazy
+Export-Package: com.appointmentServicePublisher

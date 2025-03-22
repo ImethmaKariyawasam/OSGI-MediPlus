@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: PatientServiceConsumer
+Bundle-SymbolicName: PatientServiceConsumer
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: patientserviceconsumer.Activator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: PatientServiceConsumer
+Import-Package: org.osgi.framework;version="1.3.0",com.patientPublisherService
+Bundle-ActivationPolicy: lazy

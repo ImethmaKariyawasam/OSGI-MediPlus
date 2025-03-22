@@ -1,0 +1,98 @@
+package patientserviceconsumer;
+
+import com.patientPublisherService.IPatientService;
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
+import java.util.Scanner;
+
+public class Activator implements BundleActivator {
+    private ServiceReference<?> serviceReference;
+    private Thread cliThread;
+
+    @Override
+    public void start(BundleContext context) throws Exception {
+        System.out.println("Patient Consumer Started");
+        serviceReference = context.getServiceReference(IPatientService.class.getName());
+        final IPatientService patientService = (IPatientService) context.getService(serviceReference);
+        
+        // Launch the CLI in a separate thread so as not to block the bundle start method
+        cliThread = new Thread(() -> runCLI(patientService));
+        cliThread.start();
+    }
+
+    private void runCLI(IPatientService patientService) {
+        Scanner scanner = new Scanner(System.in);
+        String command;
+        System.out.println("\nWelcome to the Patient Service CLI");
+        System.out.println("Available commands: add, update, delete, get, search, exit");
+        while (true) {
+            System.out.print("\nEnter command: ");
+            command = scanner.nextLine().trim();
+            try {
+                if (command.equalsIgnoreCase("add")) {
+                    System.out.print("Enter name: ");
+                    String name = scanner.nextLine().trim();
+                    System.out.print("Enter age: ");
+                    int age = Integer.parseInt(scanner.nextLine().trim());
+                    System.out.print("Enter gender: ");
+                    String gender = scanner.nextLine().trim();
+                    System.out.print("Enter contact: ");
+                    String contact = scanner.nextLine().trim();
+                    System.out.print("Enter medical history: ");
+                    String history = scanner.nextLine().trim();
+                    boolean added = patientService.addPatient(name, age, gender, contact, history);
+                    System.out.println(added ? "Patient added successfully!" : "Failed to add patient.");
+                } else if (command.equalsIgnoreCase("update")) {
+                    System.out.print("Enter patient id: ");
+                    int id = Integer.parseInt(scanner.nextLine().trim());
+                    System.out.print("Enter name: ");
+                    String name = scanner.nextLine().trim();
+                    System.out.print("Enter age: ");
+                    int age = Integer.parseInt(scanner.nextLine().trim());
+                    System.out.print("Enter gender: ");
+                    String gender = scanner.nextLine().trim();
+                    System.out.print("Enter contact: ");
+                    String contact = scanner.nextLine().trim();
+                    System.out.print("Enter medical history: ");
+                    String history = scanner.nextLine().trim();
+                    boolean updated = patientService.updatePatient(id, name, age, gender, contact, history);
+                    System.out.println(updated ? "Patient updated successfully!" : "Failed to update patient.");
+                } else if (command.equalsIgnoreCase("delete")) {
+                    System.out.print("Enter patient id to delete: ");
+                    int id = Integer.parseInt(scanner.nextLine().trim());
+                    boolean deleted = patientService.deletePatient(id);
+                    System.out.println(deleted ? "Patient deleted successfully!" : "Failed to delete patient.");
+                } else if (command.equalsIgnoreCase("get")) {
+                    System.out.print("Enter patient id: ");
+                    int id = Integer.parseInt(scanner.nextLine().trim());
+                    String details = patientService.getPatient(id);
+                    System.out.println(details);
+                } else if (command.equalsIgnoreCase("search")) {
+                    System.out.print("Enter search term: ");
+                    String term = scanner.nextLine().trim();
+                    String results = patientService.searchPatients(term);
+                    System.out.println(results);
+                } else if (command.equalsIgnoreCase("exit")) {
+                    System.out.println("Exiting CLI...");
+                    break;
+                } else {
+                    System.out.println("Unknown command. Please try again.");
+                }
+            } catch (Exception e) {
+                System.out.println("Error processing command: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        scanner.close();
+    }
+
+    @Override
+    public void stop(BundleContext context) throws Exception {
+        System.out.println("Patient Consumer Stopped");
+        if (cliThread != null && cliThread.isAlive()) {
+            cliThread.interrupt();
+        }
+        context.ungetService(serviceReference);
+    }
+}

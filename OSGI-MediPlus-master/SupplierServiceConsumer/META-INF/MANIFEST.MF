@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: SupplierServiceConsumer
+Bundle-SymbolicName: SupplierServiceConsumer
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: supplierserviceconsumer.Activator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: SupplierServiceConsumer
+Import-Package: org.eclipse.swt.graphics,
+ org.eclipse.swt.widgets,
+ org.osgi.framework;version="1.3.0",
+ supplierservicepublisher
+Bundle-ActivationPolicy: lazy
+Require-Bundle: org.eclipse.swt

@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: DiagnosisServicePublisher
+Bundle-SymbolicName: DiagnosisServicePublisher
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: com.diagnosisServicePublisher.Activator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: DiagnosisServicePublisher
+Import-Package: org.osgi.framework;version="1.3.0",com.hospital.core.database
+Bundle-ActivationPolicy: lazy

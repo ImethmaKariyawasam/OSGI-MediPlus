@@ -1,0 +1,569 @@
+package prescriptionconsumer;
+
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.*;
+
+import com.prescriptionservicepublisher.IPrescriptionService;
+import com.prescriptionservicepublisher.Prescription;
+
+import java.sql.Timestamp;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+
+public class PrescriptionConsumerUI {
+    private Display display;
+    private Shell shell;
+    private IPrescriptionService prescriptionService;
+    
+    // Form controls
+    private Text txtPatientId;
+    private Text txtDoctorId;
+    private Text txtItemId;
+    private Text txtMedicine;
+    private Text txtDosage;
+    private Combo cbDosageType;
+    private Text txtFrequency;
+    private Text txtDuration;
+    private Combo cbFoodRelation;
+    private Text txtInstructions;
+    private Combo cbRoute;
+    private Combo cbStatus;
+    private Table tblPrescriptions;
+
+    public PrescriptionConsumerUI(IPrescriptionService prescriptionService) {
+        this.prescriptionService = prescriptionService;
+        display = new Display();
+        shell = new Shell(display);
+        shell.setText("Prescription Management");
+        shell.setSize(900, 600);
+        
+        // Center the shell
+        Monitor primary = display.getPrimaryMonitor();
+        shell.setLocation(
+            (primary.getBounds().width - shell.getSize().x) / 2,
+            (primary.getBounds().height - shell.getSize().y) / 2
+        );
+        
+        createContents();
+    }
+    
+    public void open() {
+        shell.open();
+        while (!shell.isDisposed()) {
+            if (!display.readAndDispatch()) {
+                display.sleep();
+            }
+        }
+        display.dispose();
+    }
+    
+    public void close() {
+        if (display != null && !display.isDisposed()) {
+            display.syncExec(() -> {
+                if (shell != null && !shell.isDisposed()) {
+                    shell.close();
+                }
+            });
+        }
+    }
+    
+    private void createContents() {
+        shell.setLayout(new GridLayout(2, false));
+        
+        // Left panel for form
+        Composite formPanel = new Composite(shell, SWT.NONE);
+        formPanel.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+        formPanel.setLayout(new GridLayout(2, false));
+        
+        // Right panel for list
+        Composite listPanel = new Composite(shell, SWT.NONE);
+        listPanel.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+        listPanel.setLayout(new GridLayout(1, false));
+        
+        // Create form fields
+        createFormFields(formPanel);
+        
+        // Create buttons
+        createButtons(formPanel);
+        
+        // Create prescriptions table
+        createPrescriptionTable(listPanel);
+        
+        // Load existing prescriptions
+        loadPrescriptions();
+    }
+    
+    private void createFormFields(Composite parent) {
+        // Patient ID
+        new Label(parent, SWT.NONE).setText("Patient ID:");
+        txtPatientId = new Text(parent, SWT.BORDER);
+        txtPatientId.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        
+        // Doctor ID
+        new Label(parent, SWT.NONE).setText("Doctor ID:");
+        txtDoctorId = new Text(parent, SWT.BORDER);
+        txtDoctorId.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        
+        // Item ID
+        new Label(parent, SWT.NONE).setText("Item ID (Optional):");
+        txtItemId = new Text(parent, SWT.BORDER);
+        txtItemId.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        
+        // Medicine
+        new Label(parent, SWT.NONE).setText("Medicine:");
+        txtMedicine = new Text(parent, SWT.BORDER);
+        txtMedicine.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        
+        // Dosage
+        new Label(parent, SWT.NONE).setText("Dosage:");
+        txtDosage = new Text(parent, SWT.BORDER);
+        txtDosage.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        
+        // Dosage Type
+        new Label(parent, SWT.NONE).setText("Dosage Type:");
+        cbDosageType = new Combo(parent, SWT.DROP_DOWN | SWT.READ_ONLY);
+        cbDosageType.setItems(new String[] {"mg", "ml", "tablet", "capsule", "puff"});
+        cbDosageType.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        cbDosageType.select(0);
+        
+        // Frequency
+        new Label(parent, SWT.NONE).setText("Frequency (per day):");
+        txtFrequency = new Text(parent, SWT.BORDER);
+        txtFrequency.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        
+        // Duration
+        new Label(parent, SWT.NONE).setText("Duration (days):");
+        txtDuration = new Text(parent, SWT.BORDER);
+        txtDuration.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        
+        // Food Relation
+        new Label(parent, SWT.NONE).setText("Food Relation:");
+        cbFoodRelation = new Combo(parent, SWT.DROP_DOWN | SWT.READ_ONLY);
+        cbFoodRelation.setItems(new String[] {"Before Food", "After Food", "With Food"});
+        cbFoodRelation.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        cbFoodRelation.select(0);
+        
+        // Instructions
+        new Label(parent, SWT.NONE).setText("Instructions:");
+        txtInstructions = new Text(parent, SWT.BORDER | SWT.MULTI | SWT.WRAP | SWT.V_SCROLL);
+        GridData gdInstructions = new GridData(SWT.FILL, SWT.CENTER, true, false);
+        gdInstructions.heightHint = 60;
+        txtInstructions.setLayoutData(gdInstructions);
+        
+        // Route
+        new Label(parent, SWT.NONE).setText("Route:");
+        cbRoute = new Combo(parent, SWT.DROP_DOWN | SWT.READ_ONLY);
+        cbRoute.setItems(new String[] {"Oral", "Injection", "Topical", "Inhalation"});
+        cbRoute.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        cbRoute.select(0);
+        
+        // Status
+        new Label(parent, SWT.NONE).setText("Status:");
+        cbStatus = new Combo(parent, SWT.DROP_DOWN | SWT.READ_ONLY);
+        cbStatus.setItems(new String[] {"Pending", "Completed", "Rejected"});
+        cbStatus.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        cbStatus.select(0);
+    }
+    
+    private void createButtons(Composite parent) {
+        Composite buttonPanel = new Composite(parent, SWT.NONE);
+        GridData gdButtons = new GridData(SWT.FILL, SWT.CENTER, true, false);
+        gdButtons.horizontalSpan = 2;
+        buttonPanel.setLayoutData(gdButtons);
+        buttonPanel.setLayout(new GridLayout(4, true));
+        
+        // Create button
+        Button btnCreate = new Button(buttonPanel, SWT.PUSH);
+        btnCreate.setText("Create");
+        btnCreate.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        btnCreate.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                createPrescription();
+            }
+        });
+        
+        // Update button
+        Button btnUpdate = new Button(buttonPanel, SWT.PUSH);
+        btnUpdate.setText("Update Status");
+        btnUpdate.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        btnUpdate.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                updatePrescriptionStatus();
+            }
+        });
+        
+        // Delete button
+        Button btnDelete = new Button(buttonPanel, SWT.PUSH);
+        btnDelete.setText("Delete");
+        btnDelete.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        btnDelete.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                deletePrescription();
+            }
+        });
+        
+        // Clear button
+        Button btnClear = new Button(buttonPanel, SWT.PUSH);
+        btnClear.setText("Clear");
+        btnClear.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+        btnClear.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                clearForm();
+            }
+        });
+    }
+    
+    private void createPrescriptionTable(Composite parent) {
+        tblPrescriptions = new Table(parent, SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI);
+        tblPrescriptions.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+        tblPrescriptions.setHeaderVisible(true);
+        tblPrescriptions.setLinesVisible(true);
+        
+        String[] titles = {"Patient ID", "Doctor ID", "Medicine", "Dosage", "Frequency", "Duration", "Status", "Date"};
+        for (String title : titles) {
+            TableColumn column = new TableColumn(tblPrescriptions, SWT.NONE);
+            column.setText(title);
+            column.setWidth(100);
+        }
+        
+        tblPrescriptions.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                TableItem[] items = tblPrescriptions.getSelection();
+                if (items.length > 0) {
+                    fillForm(items[0]);
+                }
+            }
+        });
+    }
+    
+    private void loadPrescriptions() {
+        tblPrescriptions.removeAll();
+        try {
+            List<Prescription> prescriptions = prescriptionService.getAllPrescriptions();
+            for (Prescription prescription : prescriptions) {
+                TableItem item = new TableItem(tblPrescriptions, SWT.NONE);
+                item.setText(0, String.valueOf(prescription.getPatientId()));
+                item.setText(1, String.valueOf(prescription.getDoctorId()));
+                item.setText(2, prescription.getMedicine());
+                item.setText(3, prescription.getDosage() + " " + prescription.getDosageType());
+                item.setText(4, String.valueOf(prescription.getFrequency()));
+                item.setText(5, String.valueOf(prescription.getDuration()));
+                item.setText(6, prescription.getStatus());
+                item.setText(7, prescription.getPrescriptionDate().toString());
+                
+                // Store the prescription object for reference
+                item.setData(prescription);
+            }
+        } catch (Exception e) {
+            showError("Failed to load prescriptions: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void fillForm(TableItem item) {
+        if (item == null) return;
+        
+        Prescription prescription = (Prescription) item.getData();
+        if (prescription == null) return;
+        
+        txtPatientId.setText(String.valueOf(prescription.getPatientId()));
+        txtDoctorId.setText(String.valueOf(prescription.getDoctorId()));
+        
+        // Handle potentially null item ID
+        if (prescription.getItemId() != null) {
+            txtItemId.setText(String.valueOf(prescription.getItemId()));
+        } else {
+            txtItemId.setText("");
+        }
+        
+        txtMedicine.setText(prescription.getMedicine());
+        txtDosage.setText(String.valueOf(prescription.getDosage()));
+        
+        // Set combo box selections
+        setComboSelection(cbDosageType, prescription.getDosageType());
+        setComboSelection(cbFoodRelation, prescription.getFoodRelation());
+        setComboSelection(cbRoute, prescription.getRoute());
+        setComboSelection(cbStatus, prescription.getStatus());
+        
+        txtFrequency.setText(String.valueOf(prescription.getFrequency()));
+        txtDuration.setText(String.valueOf(prescription.getDuration()));
+        txtInstructions.setText(prescription.getInstructions());
+    }
+    
+    private void setComboSelection(Combo combo, String value) {
+        if (value == null || value.isEmpty()) {
+            combo.select(0);
+            return;
+        }
+        
+        String[] items = combo.getItems();
+        for (int i = 0; i < items.length; i++) {
+            if (items[i].equalsIgnoreCase(value)) {
+                combo.select(i);
+                return;
+            }
+        }
+        combo.select(0);
+    }
+    
+    private void createPrescription() {
+        try {
+            if (!validateForm()) return;
+            
+            Prescription prescription = new Prescription();
+            
+            prescription.setPatientId(Integer.parseInt(txtPatientId.getText()));
+            prescription.setDoctorId(Integer.parseInt(txtDoctorId.getText()));
+            
+            // Set optional item ID if provided
+            if (!txtItemId.getText().trim().isEmpty()) {
+                int itemId = Integer.parseInt(txtItemId.getText());
+                
+                // Validate medication
+                if (!prescriptionService.isValidMedication(itemId)) {
+                    showError("Invalid or expired medication. Please check the item ID.");
+                    return;
+                }
+                
+                prescription.setItemId(itemId);
+            }
+            
+            prescription.setMedicine(txtMedicine.getText());
+            prescription.setDosage(Double.parseDouble(txtDosage.getText()));
+            prescription.setDosageType(cbDosageType.getText());
+            prescription.setFrequency(Integer.parseInt(txtFrequency.getText()));
+            prescription.setDuration(Integer.parseInt(txtDuration.getText()));
+            prescription.setFoodRelation(cbFoodRelation.getText());
+            prescription.setInstructions(txtInstructions.getText());
+            prescription.setRoute(cbRoute.getText());
+            prescription.setStatus(cbStatus.getText());
+            prescription.setPrescriptionDate(new Timestamp(new Date().getTime()));
+            
+            int result = prescriptionService.createPrescription(prescription);
+            
+            if (result > 0) {
+                showInfo("Prescription created successfully!");
+                clearForm();
+                loadPrescriptions();
+            } else {
+                showError("Failed to create prescription");
+            }
+            
+        } catch (Exception e) {
+            showError("Error creating prescription: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void updatePrescriptionStatus() {
+        TableItem[] selectedItems = tblPrescriptions.getSelection();
+        if (selectedItems.length == 0) {
+            showError("Please select a prescription to update");
+            return;
+        }
+        
+        try {
+            Prescription prescription = (Prescription) selectedItems[0].getData();
+            String newStatus = cbStatus.getText();
+            
+            // No need to update if status hasn't changed
+            if (prescription.getStatus().equals(newStatus)) {
+                showInfo("No status change detected");
+                return;
+            }
+            
+            // Use the additional method from the implementation if available
+            if (prescriptionService instanceof com.prescriptionservicepublisher.PrescriptionServiceImplementation) {
+                com.prescriptionservicepublisher.PrescriptionServiceImplementation serviceImpl = 
+                    (com.prescriptionservicepublisher.PrescriptionServiceImplementation) prescriptionService;
+                
+                boolean updated = serviceImpl.updatePrescriptionStatus(
+                    prescription.getPatientId(), 
+                    prescription.getDoctorId(), 
+                    prescription.getPrescriptionDate(), 
+                    newStatus
+                );
+                
+                if (updated) {
+                    showInfo("Prescription status updated with stock management");
+                    loadPrescriptions();
+                    return;
+                }
+            }
+            
+            // Fallback to regular update if specialized method unavailable
+            prescription.setStatus(newStatus);
+            boolean updated = prescriptionService.updatePrescription(prescription);
+            
+            if (updated) {
+                showInfo("Prescription status updated");
+                loadPrescriptions();
+            } else {
+                showError("Failed to update prescription status");
+            }
+            
+        } catch (Exception e) {
+            showError("Error updating prescription: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void deletePrescription() {
+        TableItem[] selectedItems = tblPrescriptions.getSelection();
+        if (selectedItems.length == 0) {
+            showError("Please select a prescription to delete");
+            return;
+        }
+        
+        MessageBox confirmBox = new MessageBox(shell, SWT.ICON_QUESTION | SWT.YES | SWT.NO);
+        confirmBox.setText("Confirm Delete");
+        confirmBox.setMessage("Are you sure you want to delete this prescription?");
+        int response = confirmBox.open();
+        
+        if (response == SWT.YES) {
+            try {
+                Prescription prescription = (Prescription) selectedItems[0].getData();
+                boolean deleted = prescriptionService.deletePrescription(prescription.getPatientId());
+                
+                if (deleted) {
+                    showInfo("Prescription deleted successfully");
+                    clearForm();
+                    loadPrescriptions();
+                } else {
+                    showError("Failed to delete prescription");
+                }
+            } catch (Exception e) {
+                showError("Error deleting prescription: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    private boolean validateForm() {
+        // Patient ID validation
+        try {
+            int patientId = Integer.parseInt(txtPatientId.getText());
+            if (patientId <= 0) {
+                showError("Patient ID must be a positive number");
+                return false;
+            }
+            
+            // Validate patient exists
+            if (!prescriptionService.isValidPatient(patientId)) {
+                showError("Invalid patient ID. Patient does not exist.");
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            showError("Patient ID must be a valid number");
+            return false;
+        } catch (Exception e) {
+            showError("Error validating patient: " + e.getMessage());
+            return false;
+        }
+        
+        // Doctor ID validation
+        try {
+            int doctorId = Integer.parseInt(txtDoctorId.getText());
+            if (doctorId <= 0) {
+                showError("Doctor ID must be a positive number");
+                return false;
+            }
+            
+            // Validate doctor exists
+            if (!prescriptionService.isValidDoctor(doctorId)) {
+                showError("Invalid doctor ID. Doctor does not exist.");
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            showError("Doctor ID must be a valid number");
+            return false;
+        } catch (Exception e) {
+            showError("Error validating doctor: " + e.getMessage());
+            return false;
+        }
+        
+        // Medicine validation
+        if (txtMedicine.getText().trim().isEmpty()) {
+            showError("Medicine name is required");
+            return false;
+        }
+        
+        // Dosage validation
+        try {
+            double dosage = Double.parseDouble(txtDosage.getText());
+            if (dosage <= 0) {
+                showError("Dosage must be a positive number");
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            showError("Dosage must be a valid number");
+            return false;
+        }
+        
+        // Frequency validation
+        try {
+            int frequency = Integer.parseInt(txtFrequency.getText());
+            if (frequency <= 0) {
+                showError("Frequency must be a positive number");
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            showError("Frequency must be a valid number");
+            return false;
+        }
+        
+        // Duration validation
+        try {
+            int duration = Integer.parseInt(txtDuration.getText());
+            if (duration <= 0) {
+                showError("Duration must be a positive number");
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            showError("Duration must be a valid number");
+            return false;
+        }
+        
+        return true;
+    }
+    
+    private void clearForm() {
+        txtPatientId.setText("");
+        txtDoctorId.setText("");
+        txtItemId.setText("");
+        txtMedicine.setText("");
+        txtDosage.setText("");
+        txtFrequency.setText("");
+        txtDuration.setText("");
+        txtInstructions.setText("");
+        
+        cbDosageType.select(0);
+        cbFoodRelation.select(0);
+        cbRoute.select(0);
+        cbStatus.select(0);
+    }
+    
+    private void showError(String message) {
+        MessageBox messageBox = new MessageBox(shell, SWT.ICON_ERROR | SWT.OK);
+        messageBox.setText("Error");
+        messageBox.setMessage(message);
+        messageBox.open();
+    }
+    
+    private void showInfo(String message) {
+        MessageBox messageBox = new MessageBox(shell, SWT.ICON_INFORMATION | SWT.OK);
+        messageBox.setText("Information");
+        messageBox.setMessage(message);
+        messageBox.open();
+    }
+}

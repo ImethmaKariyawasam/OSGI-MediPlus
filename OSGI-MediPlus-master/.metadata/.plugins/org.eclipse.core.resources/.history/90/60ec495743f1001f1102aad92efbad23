@@ -1,0 +1,185 @@
+package patientserviceconsumer;
+
+import com.patientPublisherService.IPatientService;
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
+public class Activator implements BundleActivator {
+    private ServiceReference<?> serviceReference;
+    private Thread cliThread;
+
+    @Override
+    public void start(BundleContext context) throws Exception {
+        System.out.println("Patient Consumer Started");
+        serviceReference = context.getServiceReference(IPatientService.class.getName());
+        final IPatientService patientService = (IPatientService) context.getService(serviceReference);
+
+        // Launch the CLI in a separate thread so as not to block the bundle start method
+        cliThread = new Thread(() -> runCLI(patientService));
+        cliThread.start();
+    }
+
+    private void runCLI(IPatientService patientService) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        String command;
+        System.out.println("\nWelcome to the Patient Service CLI");
+        System.out.println("Available commands: add, update, delete, get, search, exit");
+
+        while (true) {
+            System.out.print("\nEnter command: ");
+            try {
+                command = reader.readLine().trim();
+                System.out.println("DEBUG: Received command: [" + command + "]");
+            } catch (IOException e) {
+                System.out.println("Error reading input: " + e.getMessage());
+                e.printStackTrace();
+                continue;
+            }
+
+            try {
+                if (command.equalsIgnoreCase("add")) {
+                    String name = readNonEmptyString(reader, "Enter name: ");
+                    int age = readValidAge(reader, "Enter age: ");
+                    String gender = readValidGender(reader, "Enter gender (Male/Female/Other): ");
+                    String contact = readValidContact(reader, "Enter contact number: ");
+                    System.out.print("Enter medical history (optional): ");
+                    String history = reader.readLine().trim();
+
+                    boolean added = patientService.addPatient(name, age, gender, contact, history);
+                    System.out.println(added ? "Patient added successfully!" : "Failed to add patient.");
+                } else if (command.equalsIgnoreCase("update")) {
+                    int id = readValidInt(reader, "Enter patient ID: ");
+                    String name = readNonEmptyString(reader, "Enter name: ");
+                    int age = readValidAge(reader, "Enter age: ");
+                    String gender = readValidGender(reader, "Enter gender (Male/Female/Other): ");
+                    String contact = readValidContact(reader, "Enter contact number: ");
+                    System.out.print("Enter medical history (optional): ");
+                    String history = reader.readLine().trim();
+
+                    boolean updated = patientService.updatePatient(id, name, age, gender, contact, history);
+                    System.out.println(updated ? "Patient updated successfully!" : "Failed to update patient.");
+                } else if (command.equalsIgnoreCase("delete")) {
+                    int id = readValidInt(reader, "Enter patient ID to delete: ");
+                    boolean deleted = patientService.deletePatient(id);
+                    System.out.println(deleted ? "Patient deleted successfully!" : "Failed to delete patient.");
+                } else if (command.equalsIgnoreCase("get")) {
+                    int id = readValidInt(reader, "Enter patient ID: ");
+                    String details = patientService.getPatient(id);
+                    System.out.println(details);
+                } else if (command.equalsIgnoreCase("search")) {
+                    String term = readNonEmptyString(reader, "Enter search term: ");
+                    String results = patientService.searchPatients(term);
+                    System.out.println(results);
+                } else if (command.equalsIgnoreCase("exit")) {
+                    System.out.println("Exiting CLI...");
+                    break;
+                } else {
+                    System.out.println("Unknown command. Please try again.");
+                }
+            } catch (IOException e) {
+                System.out.println("Error processing input: " + e.getMessage());
+                e.printStackTrace();
+            } catch (NumberFormatException nfe) {
+                System.out.println("Invalid number format. Please try again.");
+            } catch (Exception e) {
+                System.out.println("Error processing command: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            reader.close();
+        } catch (IOException e) {
+            System.out.println("Error closing reader: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void stop(BundleContext context) throws Exception {
+        System.out.println("Patient Consumer Stopped");
+        if (cliThread != null && cliThread.isAlive()) {
+            cliThread.interrupt();
+        }
+        context.ungetService(serviceReference);
+    }
+
+    // Helper method for reading a non-empty string
+    private String readNonEmptyString(BufferedReader reader, String prompt) throws IOException {
+        String input;
+        do {
+            System.out.print(prompt);
+            input = reader.readLine().trim();
+            if (input.isEmpty()) {
+                System.out.println("Input cannot be empty. Please try again.");
+            }
+        } while (input.isEmpty());
+        return input;
+    }
+
+    // Helper method for reading a valid integer (e.g., for ID)
+    private int readValidInt(BufferedReader reader, String prompt) throws IOException {
+        int value;
+        while (true) {
+            System.out.print(prompt);
+            try {
+                value = Integer.parseInt(reader.readLine().trim());
+                if (value < 1) {
+                    System.out.println("Value must be greater than zero.");
+                    continue;
+                }
+                return value;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid number. Please enter a valid integer.");
+            }
+        }
+    }
+
+    // Helper method for reading a valid age
+    private int readValidAge(BufferedReader reader, String prompt) throws IOException {
+        int age;
+        while (true) {
+            System.out.print(prompt);
+            try {
+                age = Integer.parseInt(reader.readLine().trim());
+                if (age < 0 || age > 150) {
+                    System.out.println("Please enter a valid age between 0 and 150.");
+                    continue;
+                }
+                return age;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid age. Please enter a valid integer.");
+            }
+        }
+    }
+
+    // Helper method for reading a valid gender
+    private String readValidGender(BufferedReader reader, String prompt) throws IOException {
+        String gender;
+        while (true) {
+            System.out.print(prompt);
+            gender = reader.readLine().trim();
+            if (gender.equalsIgnoreCase("Male") || gender.equalsIgnoreCase("Female") || gender.equalsIgnoreCase("Other")) {
+                return gender;
+            }
+            System.out.println("Invalid gender. Please enter Male, Female, or Other.");
+        }
+    }
+
+    // Helper method for reading a valid contact number
+    private String readValidContact(BufferedReader reader, String prompt) throws IOException {
+        String contact;
+        while (true) {
+            System.out.print(prompt);
+            contact = reader.readLine().trim();
+            if (contact.matches("\\d{10,15}")) {
+                return contact;
+            }
+            System.out.println("Invalid contact number. It must be 10 to 15 digits.");
+        }
+    }
+}

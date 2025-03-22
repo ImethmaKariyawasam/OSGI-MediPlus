@@ -1,0 +1,38 @@
+package com.hospital.core.database;
+
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceRegistration;
+
+public class Activator implements BundleActivator {
+    private ServiceRegistration publishServiceRegistration;
+    private static BundleContext context;
+
+    static BundleContext getContext() {
+        return context;
+    }
+
+    @Override
+    public void start(BundleContext bundleContext) throws Exception {
+    	context = bundleContext;  // Store the context
+        System.out.println("Database Publisher Started");
+        IDatabaseService databaseService = new DatabaseServiceImplementation();
+        publishServiceRegistration = context.registerService(
+            IDatabaseService.class.getName(), 
+            databaseService, 
+            null
+        );
+    }
+
+    @Override
+    public void stop(BundleContext context) throws Exception {
+        System.out.println("Database Publisher Stopped");
+        if (publishServiceRegistration != null) {
+            publishServiceRegistration.unregister();
+        }
+        context = null;  // Clear the context
+    }
+}

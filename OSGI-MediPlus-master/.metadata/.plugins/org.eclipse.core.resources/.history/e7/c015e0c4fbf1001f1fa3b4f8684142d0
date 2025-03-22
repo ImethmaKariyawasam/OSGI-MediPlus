@@ -1,0 +1,14 @@
+package com.vitalServicePublisher;
+
+
+public interface IVitalsService {
+    boolean recordVitals(int patientId, double temperature, int heartRate, int bloodPressureSystolic, 
+                        int bloodPressureDiastolic, int respiratoryRate);
+    
+    Vitals getVitals(int patientId);
+    
+    boolean updateVitals(int patientId, double temperature, int heartRate, int bloodPressureSystolic, 
+                        int bloodPressureDiastolic, int respiratoryRate);
+    
+    boolean deleteVitals(int patientId);
+}

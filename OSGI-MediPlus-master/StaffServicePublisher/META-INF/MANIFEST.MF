@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: StaffServicePublisher
+Bundle-SymbolicName: StaffServicePublisher
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: staffservicepublisher.StaffActivator
+Export-Package: staffservicepublisher
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: StaffServicePublisher
+Import-Package: com.hospital.core.database,org.osgi.framework;version="1.3.0"
+Bundle-ActivationPolicy: lazy

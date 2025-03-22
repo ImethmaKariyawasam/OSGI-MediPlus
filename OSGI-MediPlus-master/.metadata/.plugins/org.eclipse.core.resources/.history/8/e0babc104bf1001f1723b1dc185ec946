@@ -1,0 +1,129 @@
+package com.patientPublisherService;
+
+import com.hospital.core.database.IDatabaseService;
+import java.sql.*;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
+
+public class PatientServiceImplementation implements IPatientService {
+    private IDatabaseService dbService;
+    private Connection connection;
+
+    public PatientServiceImplementation(BundleContext context) {
+        ServiceReference serviceReference = context.getServiceReference(IDatabaseService.class.getName());
+        if (serviceReference != null) {
+            dbService = (IDatabaseService) context.getService(serviceReference);
+            try {
+				connection = dbService.getConnection();
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
+    }
+
+    @Override
+    public boolean addPatient(String name, int age, String gender, String contact, String history) {
+        try {
+            String sql = "INSERT INTO patients (name, age, gender, contact, medical_history) VALUES (?, ?, ?, ?, ?)";
+            PreparedStatement pstmt = connection.prepareStatement(sql);
+            pstmt.setString(1, name);
+            pstmt.setInt(2, age);
+            pstmt.setString(3, gender);
+            pstmt.setString(4, contact);
+            pstmt.setString(5, history);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @Override
+    public boolean updatePatient(int id, String name, int age, String gender, String contact, String history) {
+        try {
+            String sql = "UPDATE patients SET name=?, age=?, gender=?, contact=?, medical_history=? WHERE id=?";
+            PreparedStatement pstmt = connection.prepareStatement(sql);
+            pstmt.setString(1, name);
+            pstmt.setInt(2, age);
+            pstmt.setString(3, gender);
+            pstmt.setString(4, contact);
+            pstmt.setString(5, history);
+            pstmt.setInt(6, id);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @Override
+    public boolean deletePatient(int id) {
+        try {
+            String sql = "DELETE FROM patients WHERE id=?";
+            PreparedStatement pstmt = connection.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @Override
+    public String getPatient(int id) {
+        try {
+            String sql = "SELECT * FROM patients WHERE id=?";
+            PreparedStatement pstmt = connection.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                return String.format("Patient ID: %d\nName: %s\nAge: %d\nGender: %s\nContact: %s\nMedical History: %s",
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getInt("age"),
+                    rs.getString("gender"),
+                    rs.getString("contact"),
+                    rs.getString("medical_history")
+                );
+            } else {
+                return "Patient not found";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Error retrieving patient details";
+        }
+    }
+
+    @Override
+    public String searchPatients(String term) {
+        try {
+            String sql = "SELECT * FROM patients WHERE name LIKE ? OR contact LIKE ?";
+            PreparedStatement pstmt = connection.prepareStatement(sql);
+            String searchTerm = "%" + term + "%";
+            pstmt.setString(1, searchTerm);
+            pstmt.setString(2, searchTerm);
+            
+            ResultSet rs = pstmt.executeQuery();
+            StringBuilder result = new StringBuilder();
+            
+            while (rs.next()) {
+                result.append(String.format(
+                    "ID: %d | Name: %s | Age: %d | Gender: %s | Contact: %s\n",
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getInt("age"),
+                    rs.getString("gender"),
+                    rs.getString("contact")
+                ));
+            }
+            
+            return result.length() > 0 ? result.toString() : "No patients found";
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Error searching patients";
+        }
+    }
+}

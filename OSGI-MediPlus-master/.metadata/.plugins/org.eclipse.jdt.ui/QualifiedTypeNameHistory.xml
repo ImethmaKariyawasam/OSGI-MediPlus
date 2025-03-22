@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<qualifiedTypeNameHistroy>
+    <fullyQualifiedTypeName name="java.sql.Connection"/>
+    <fullyQualifiedTypeName name="java.sql.PreparedStatement"/>
+    <fullyQualifiedTypeName name="com.hospital.core.database.DatabaseServiceImplementation"/>
+    <fullyQualifiedTypeName name="com.patientPublisherService.PatientServiceImplementation"/>
+    <fullyQualifiedTypeName name="java.io.IOException"/>
+    <fullyQualifiedTypeName name="java.io.BufferedReader"/>
+    <fullyQualifiedTypeName name="java.io.InputStreamReader"/>
+    <fullyQualifiedTypeName name="vitalsservicepublisher.Vitals"/>
+    <fullyQualifiedTypeName name="org.osgi.framework.ServiceRegistration"/>
+    <fullyQualifiedTypeName name="org.osgi.framework.ServiceReference"/>
+    <fullyQualifiedTypeName name="com.hospital.core.database.IDatabaseService"/>
+    <fullyQualifiedTypeName name="vitalsservicepublisher.VitalsServiceImplementation"/>
+    <fullyQualifiedTypeName name="patientserviceconsumer.Activator"/>
+    <fullyQualifiedTypeName name="com.vitalServicePublisher.Vitals"/>
+    <fullyQualifiedTypeName name="java.util.Map"/>
+    <fullyQualifiedTypeName name="java.awt.DisplayMode"/>
+    <fullyQualifiedTypeName name="java.util.HashMap"/>
+    <fullyQualifiedTypeName name="stockservicepublisher.Stock"/>
+    <fullyQualifiedTypeName name="staffservicepublisher.IStaffService"/>
+    <fullyQualifiedTypeName name="stockservicepublisher.StockService"/>
+    <fullyQualifiedTypeName name="com.patientPublisherService.IPatientService"/>
+</qualifiedTypeNameHistroy>

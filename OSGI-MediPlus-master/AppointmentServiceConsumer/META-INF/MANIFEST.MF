@@ -1,0 +1,16 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: AppointmentServiceConsumer
+Bundle-SymbolicName: AppointmentServiceConsumer
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: appointmentserviceconsumer.Activator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: AppointmentServiceConsumer
+Import-Package: com.appointmentServicePublisher,
+ org.eclipse.swt,
+ org.eclipse.swt.graphics,
+ org.eclipse.swt.layout,
+ org.eclipse.swt.widgets,
+ org.osgi.framework;version="1.3.0"
+Require-Bundle: org.eclipse.swt
+Bundle-ActivationPolicy: lazy

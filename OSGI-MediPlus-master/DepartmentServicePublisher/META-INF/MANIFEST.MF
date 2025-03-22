@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: DepartmentServicePublisher
+Bundle-SymbolicName: DepartmentServicePublisher
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: departmentservicepublisher.DepartmentActivator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: DepartmentServicePublisher
+Export-Package: departmentservicepublisher
+Import-Package: staffservicepublisher,com.hospital.core.database,org.osgi.framework;version="1.3.0"
+Bundle-ActivationPolicy: lazy

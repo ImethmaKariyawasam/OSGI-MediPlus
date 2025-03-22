@@ -1,0 +1,27 @@
+package com.patientPublisherService;
+
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceRegistration;
+
+public class Activator implements BundleActivator {
+    ServiceRegistration publishServiceRegistration;
+
+    @Override
+    public void start(BundleContext context) throws Exception {
+        System.out.println("Patient Service Publisher Started");
+        IPatientService patientService = new IPatientService();
+        publishServiceRegistration = context.registerService(
+            IPatientService.class.getName(), 
+            patientService, 
+            null
+        );
+    }
+
+    @Override
+    public void stop(BundleContext context) throws Exception {
+        System.out.println("Patient Service Publisher Stopped");
+        publishServiceRegistration.unregister();
+    }
+
+}

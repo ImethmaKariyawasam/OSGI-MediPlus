@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: VitalsServicePublisher
+Bundle-SymbolicName: VitalsServicePublisher
+Bundle-Version: 1.0.0.qualifier
+Export-Package: com.vitalServicePublisher
+Bundle-Activator: com.vitalServicePublisher.Activator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: VitalsServicePublisher
+Import-Package: com.hospital.core.database,org.osgi.framework;version="1.3.0"
+Bundle-ActivationPolicy: lazy

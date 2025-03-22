@@ -1,0 +1,74 @@
+package prescriptionconsumer;
+
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
+
+import com.prescriptionservicepublisher.IPrescriptionService;
+
+public class Activator implements BundleActivator {
+
+    private static BundleContext context;
+    private ServiceReference<?> prescriptionServiceReference;
+    private PrescriptionConsumerUI consumerUI;
+    
+    static BundleContext getContext() {
+        return context;
+    }
+
+    public void start(BundleContext bundleContext) throws Exception {
+        Activator.context = bundleContext;
+        
+        System.out.println("Prescription Service Consumer Started...");
+        
+        // Get the prescription service reference
+        prescriptionServiceReference = context.getServiceReference(IPrescriptionService.class.getName());
+        
+        if (prescriptionServiceReference != null) {
+            // Get the actual service implementation
+            IPrescriptionService prescriptionService = 
+                (IPrescriptionService) context.getService(prescriptionServiceReference);
+            
+            if (prescriptionService != null) {
+                System.out.println("Prescription Service Successfully Located");
+                
+                // Start the UI in a separate thread to avoid blocking the OSGi framework
+                new Thread(() -> {
+                    try {
+                        consumerUI = new PrescriptionConsumerUI(prescriptionService);
+                        consumerUI.open();
+                    } catch (Exception e) {
+                        System.err.println("Error starting Prescription UI: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }).start();
+            } else {
+                System.err.println("Failed to get Prescription Service instance");
+            }
+        } else {
+            System.err.println("Prescription Service is not available");
+        }
+    }
+
+    public void stop(BundleContext bundleContext) throws Exception {
+        System.out.println("Prescription Service Consumer Stopped");
+        
+        // Close the UI if it's open
+        if (consumerUI != null) {
+            try {
+                consumerUI.close();
+                consumerUI = null;
+            } catch (Exception e) {
+                System.err.println("Error closing UI: " + e.getMessage());
+            }
+        }
+        
+        // Unget the service
+        if (prescriptionServiceReference != null) {
+            context.ungetService(prescriptionServiceReference);
+            prescriptionServiceReference = null;
+        }
+        
+        Activator.context = null;
+    }
+}

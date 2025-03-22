@@ -1,0 +1,16 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: HopitalCoreDatabase
+Bundle-SymbolicName: HopitalCoreDatabase
+Bundle-Version: 1.0.0.qualifier
+Export-Package: com.hospital.core.database
+Bundle-Activator: com.hospital.core.database.Activator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: HopitalCoreDatabase
+Import-Package: org.osgi.framework;version="1.3.0",
+ com.mysql.cj.jdbc,
+ com.mysql.cj.jdbc.exceptions,
+ javax.sql,
+ java.sql,
+ org.eclipse.swt
+Bundle-ActivationPolicy: lazy

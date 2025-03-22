@@ -1,0 +1,8 @@
+package com.hospital.core.database;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+
+public interface IDatabaseService {
+	Connection getConnection();
+}

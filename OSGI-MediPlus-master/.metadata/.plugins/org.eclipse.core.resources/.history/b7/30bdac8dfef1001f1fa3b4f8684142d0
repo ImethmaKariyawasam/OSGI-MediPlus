@@ -1,0 +1,435 @@
+package patientserviceconsumer;
+
+import com.patientPublisherService.IPatientService;
+import com.patientPublisherService.Patient;
+import com.vitalServicePublisher.IVitalsService;
+import com.vitalServicePublisher.Vitals;
+
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.List;
+
+public class Activator implements BundleActivator {
+	private ServiceReference<?> patientServiceRef;
+	private ServiceReference<?> vitalsServiceRef;
+	private Thread cliThread;
+
+    @Override
+    public void start(BundleContext context) throws Exception {
+        System.out.println("Hospital Services Consumer Started");
+        
+        // Get both services
+        patientServiceRef = context.getServiceReference(IPatientService.class.getName());
+        vitalsServiceRef = context.getServiceReference(IVitalsService.class.getName());
+        
+        final IPatientService patientService = (IPatientService) context.getService(patientServiceRef);
+        final IVitalsService vitalsService = (IVitalsService) context.getService(vitalsServiceRef);
+
+        cliThread = new Thread(() -> runMainCLI(patientService, vitalsService));
+        cliThread.start();
+    }
+    
+    private void runMainCLI(IPatientService patientService, IVitalsService vitalsService) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        flushReader(reader);
+        String command;
+        
+        System.out.println("\nWelcome to the Hospital Management System");
+        System.out.println("Available services: patients, vitals, exit");
+
+        while (true) {
+            System.out.print("\nSelect service (patients/vitals/exit): ");
+            try {
+                command = reader.readLine().trim().toLowerCase();
+                
+                switch (command) {
+                    case "patients":
+                        runPatientCLI(patientService);
+                        break;
+                    case "vitals":
+                        runVitalsCLI(vitalsService);
+                        break;
+                    case "exit":
+                        System.out.println("Exiting Hospital Management System...");
+                        return;
+                    default:
+                        System.out.println("Unknown service. Please select 'patients', 'vitals', or 'exit'");
+                }
+            } catch (IOException e) {
+                System.out.println("Error reading input: " + e.getMessage());
+            }
+        }
+    }
+
+    private void runPatientCLI(IPatientService patientService) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        flushReader(reader);
+        String command;
+        System.out.println("\nWelcome to the Patient Service CLI");
+        System.out.println("Available commands: add, update, delete, get, search, exit");
+
+        while (true) {
+            System.out.print("\nEnter command: ");
+            try {
+                command = reader.readLine().trim();
+                System.out.println("DEBUG: Received command: [" + command + "]");
+                if (command.equals("back")) {
+                    return;
+                }
+            } catch (IOException e) {
+                System.out.println("Error reading input: " + e.getMessage());
+                e.printStackTrace();
+                continue;
+            }
+
+            try {
+                if (command.equalsIgnoreCase("add")) {
+                    Patient patient = createPatient(reader, false);
+                    boolean added = patientService.addPatient(patient);
+                    System.out.println(added ? "Patient added successfully!" : "Failed to add patient.");
+                } else if (command.equalsIgnoreCase("update")) {
+                    int id = readValidInt(reader, "Enter patient ID: ");
+
+                    // First, check if the patient exists
+                    String existingPatient = patientService.getPatient(id);
+                    if (existingPatient == null) {
+                        System.out.println("Error: No patient found with ID " + id);
+                    } else {
+                        System.out.println("Existing Patient Details:");
+                        System.out.println(existingPatient);
+
+                        // Proceed with updating only if the patient exists
+                        Patient patient = createPatient(reader, true);
+                        patient.setId(id); // Assign the ID for update
+                        boolean updated = patientService.updatePatient(patient);
+                        System.out.println(updated ? "Patient updated successfully!" : "Failed to update patient.");
+                    }
+                } else if (command.equalsIgnoreCase("delete")) {
+                    int id = readValidInt(reader, "Enter patient ID to delete: ");
+                    boolean deleted = patientService.deletePatient(id);
+                    System.out.println(deleted ? "Patient deleted successfully!" : "Failed to delete patient.");
+                } else if (command.equalsIgnoreCase("get")) {
+                    int id = readValidInt(reader, "Enter patient ID: ");
+                    String details = patientService.getPatient(id);
+                    System.out.println(details);
+                } else if (command.equalsIgnoreCase("search")) {
+                    String term = readNonEmptyString(reader, "Enter search term: ");
+                    List<Patient> patients = patientService.searchPatients(term);
+                    if (patients.isEmpty()) {
+                        System.out.println("No patients found.");
+                    } else {
+                        for (Patient p : patients) {
+                            System.out.println(p);
+                        }
+                    }
+                } else if (command.equalsIgnoreCase("exit")) {
+                    System.out.println("Exiting CLI...");
+                    break;
+                } else {
+                    System.out.println("Unknown command. Please try again.");
+                }
+            } catch (IOException e) {
+                System.out.println("Error processing input: " + e.getMessage());
+                e.printStackTrace();
+            } catch (NumberFormatException nfe) {
+                System.out.println("Invalid number format. Please try again.");
+            } catch (Exception e) {
+                System.out.println("Error processing command: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            reader.close();
+        } catch (IOException e) {
+            System.out.println("Error closing reader: " + e.getMessage());
+        }
+    }
+    
+    private void runVitalsCLI(IVitalsService vitalsService) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        flushReader(reader);
+        String command;
+        
+        System.out.println("\nWelcome to the Vitals Service CLI");
+        System.out.println("Available commands: record, get, update, delete, exit");
+
+        while (true) {
+            System.out.print("\nEnter command: ");
+            try {
+                command = reader.readLine().trim();
+                if (command.equalsIgnoreCase("back")) {
+                    return;
+                }
+            } catch (IOException e) {
+                System.out.println("Error reading input: " + e.getMessage());
+                continue;
+            }
+
+            try {
+                if (command.equalsIgnoreCase("record")) {
+                    int patientId = readValidInt(reader, "Enter patient ID: ");
+                    Vitals vitals = createVitals(reader, patientId);
+                    boolean recorded = vitalsService.recordVitals(vitals);
+                    System.out.println(recorded ? "Vitals recorded successfully!" : "Failed to record vitals.");
+                    
+                } else if (command.equalsIgnoreCase("get")) {
+                    int patientId = readValidInt(reader, "Enter patient ID: ");
+                    Vitals vitals = vitalsService.getVitals(patientId);
+                    if (vitals != null) {
+                        displayVitals(vitals);
+                    } else {
+                        System.out.println("No vitals found for patient ID: " + patientId);
+                    }
+
+                } else if (command.equalsIgnoreCase("update")) {
+                    int patientId = readValidInt(reader, "Enter patient ID: ");
+
+                    // First, check if vitals exist
+                    Vitals existingVitals = vitalsService.getVitals(patientId);
+                    if (existingVitals == null) {
+                        System.out.println("Error: No vitals found for patient ID " + patientId);
+                    } else {
+                        System.out.println("Existing Vitals:");
+                        displayVitals(existingVitals);
+
+                        // Proceed with update
+                        Vitals updatedVitals = createVitals(reader, patientId);
+                        boolean updated = vitalsService.updateVitals(patientId, updatedVitals);
+                        System.out.println(updated ? "Vitals updated successfully!" : "Failed to update vitals.");
+                    }
+
+                } else if (command.equalsIgnoreCase("delete")) {
+                    int patientId = readValidInt(reader, "Enter patient ID: ");
+
+                    // Check if vitals exist before deleting
+                    Vitals existingVitals = vitalsService.getVitals(patientId);
+                    if (existingVitals == null) {
+                        System.out.println("Error: No vitals found for patient ID " + patientId);
+                    } else {
+                        boolean deleted = vitalsService.deleteVitals(patientId);
+                        System.out.println(deleted ? "Vitals deleted successfully!" : "Failed to delete vitals.");
+                    }
+
+                } else if (command.equalsIgnoreCase("exit")) {
+                    System.out.println("Exiting Vitals CLI...");
+                    break;
+                } else {
+                    System.out.println("Unknown command. Available commands: record, get, update, delete, exit");
+                }
+            } catch (IOException e) {
+                System.out.println("Error processing input: " + e.getMessage());
+            } catch (NumberFormatException nfe) {
+                System.out.println("Invalid number format. Please try again.");
+            } catch (Exception e) {
+                System.out.println("Error processing command: " + e.getMessage());
+            }
+        }
+
+    }
+    
+    // Helper method to create a new Vitals object from user input
+    private Vitals createVitals(BufferedReader reader, int patientId) throws IOException {
+        double temperature = readValidTemperature(reader, "Enter temperature (°C): ");
+        int heartRate = readValidHeartRate(reader, "Enter heart rate (bpm): ");
+        int systolic = readValidBloodPressure(reader, "Enter systolic blood pressure: ");
+        int diastolic = readValidBloodPressure(reader, "Enter diastolic blood pressure: ");
+        int respiratoryRate = readValidRespiratoryRate(reader, "Enter respiratory rate (breaths/min): ");
+
+        return new Vitals (temperature, heartRate, systolic, diastolic, respiratoryRate);
+    }
+    
+    
+    // Helper method to create a new Patient object from user input
+    private Patient createPatient(BufferedReader reader, boolean isUpdate) throws IOException {
+        String name = readNonEmptyString(reader, "Enter name: ");
+        int age = readValidAge(reader, "Enter age: ");
+        String gender = readValidGender(reader, "Enter gender (Male/Female/Other): ");
+        String contact = readValidContact(reader, "Enter contact number: ");
+        System.out.print("Enter medical history (optional): ");
+        String history = reader.readLine().trim();
+        
+        return isUpdate 
+            ? new Patient(0, name, age, gender, contact, history) // ID will be set later
+            : new Patient(name, age, gender, contact, history);
+    }
+
+    private void displayVitals(Vitals vitals) {
+        System.out.println("\nVitals Information:");
+        System.out.println("Temperature: " + vitals.getTemperature() + "°C");
+        System.out.println("Heart Rate: " + vitals.getHeartRate() + " bpm");
+        System.out.println("Blood Pressure: " + vitals.getBloodPressureSystolic() + "/" + 
+                          vitals.getBloodPressureDiastolic() + " mmHg");
+        System.out.println("Respiratory Rate: " + vitals.getRespiratoryRate() + " breaths/min");
+    }
+
+
+    private double readValidTemperature(BufferedReader reader, String prompt) throws IOException {
+        double temp;
+        while (true) {
+            System.out.print(prompt);
+            try {
+                temp = Double.parseDouble(reader.readLine().trim());
+                if (temp < 35 || temp > 42) {
+                    System.out.println("Temperature must be between 35°C and 42°C");
+                    continue;
+                }
+                return temp;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid temperature. Please enter a valid number.");
+            }
+        }
+    }
+
+    private int readValidHeartRate(BufferedReader reader, String prompt) throws IOException {
+        int rate;
+        while (true) {
+            System.out.print(prompt);
+            try {
+                rate = Integer.parseInt(reader.readLine().trim());
+                if (rate < 30 || rate > 200) {
+                    System.out.println("Heart rate must be between 30 and 200 bpm");
+                    continue;
+                }
+                return rate;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid heart rate. Please enter a valid number.");
+            }
+        }
+    }
+
+    private int readValidBloodPressure(BufferedReader reader, String prompt) throws IOException {
+        int pressure;
+        while (true) {
+            System.out.print(prompt);
+            try {
+                pressure = Integer.parseInt(reader.readLine().trim());
+                if (pressure < 40 || pressure > 250) {
+                    System.out.println("Blood pressure must be between 40 and 250 mmHg");
+                    continue;
+                }
+                return pressure;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid blood pressure. Please enter a valid number.");
+            }
+        }
+    }
+
+    private int readValidRespiratoryRate(BufferedReader reader, String prompt) throws IOException {
+        int rate;
+        while (true) {
+            System.out.print(prompt);
+            try {
+                rate = Integer.parseInt(reader.readLine().trim());
+                if (rate < 8 || rate > 40) {
+                    System.out.println("Respiratory rate must be between 8 and 40 breaths/min");
+                    continue;
+                }
+                return rate;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid respiratory rate. Please enter a valid number.");
+            }
+        }
+    }
+    
+    // Helper method for reading a non-empty string
+    private String readNonEmptyString(BufferedReader reader, String prompt) throws IOException {
+        String input;
+        do {
+            System.out.print(prompt);
+            input = reader.readLine().trim();
+            if (input.isEmpty()) {
+                System.out.println("Input cannot be empty. Please try again.");
+            }
+        } while (input.isEmpty());
+        return input;
+    }
+
+    // Helper method for reading a valid integer (e.g., for ID)
+    private int readValidInt(BufferedReader reader, String prompt) throws IOException {
+        int value;
+        while (true) {
+            System.out.print(prompt);
+            try {
+                value = Integer.parseInt(reader.readLine().trim());
+                if (value < 1) {
+                    System.out.println("Value must be greater than zero.");
+                    continue;
+                }
+                return value;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid number. Please enter a valid integer.");
+            }
+        }
+    }
+
+    // Helper method for reading a valid age
+    private int readValidAge(BufferedReader reader, String prompt) throws IOException {
+        int age;
+        while (true) {
+            System.out.print(prompt);
+            try {
+                age = Integer.parseInt(reader.readLine().trim());
+                if (age < 0 || age > 150) {
+                    System.out.println("Please enter a valid age between 0 and 150.");
+                    continue;
+                }
+                return age;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid age. Please enter a valid integer.");
+            }
+        }
+    }
+
+    // Helper method for reading a valid gender
+    private String readValidGender(BufferedReader reader, String prompt) throws IOException {
+        String gender;
+        while (true) {
+            System.out.print(prompt);
+            gender = reader.readLine().trim();
+            if (gender.equalsIgnoreCase("Male") || gender.equalsIgnoreCase("Female") || gender.equalsIgnoreCase("Other")) {
+                return gender;
+            }
+            System.out.println("Invalid gender. Please enter Male, Female, or Other.");
+        }
+    }
+
+    // Helper method for reading a valid contact number
+    private String readValidContact(BufferedReader reader, String prompt) throws IOException {
+        String contact;
+        while (true) {
+            System.out.print(prompt);
+            contact = reader.readLine().trim();
+            if (contact.matches("\\d{10,15}")) {
+                return contact;
+            }
+            System.out.println("Invalid contact number. It must be 10 to 15 digits.");
+        }
+    }
+    
+    private void flushReader(BufferedReader reader) {
+        try {
+            while (reader.ready()) {
+                reader.read();
+            }
+        } catch (IOException e) {
+            System.out.println("Error flushing input buffer: " + e.getMessage());
+        }
+    }
+    
+    @Override
+    public void stop(BundleContext context) throws Exception {
+        System.out.println("Hospital Services Consumer Stopped");
+        if (cliThread != null && cliThread.isAlive()) {
+            cliThread.interrupt();
+        }
+        context.ungetService(patientServiceRef);
+        context.ungetService(vitalsServiceRef);
+    }
+
+}

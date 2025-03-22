@@ -1,0 +1,111 @@
+package vitalsservicepublisher;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import com.hospital.core.database.IDatabaseService;
+
+public class VitalsServiceImplementation implements IVitalsService {
+    private IDatabaseService databaseService;
+    
+    public VitalsServiceImplementation(IDatabaseService databaseService) {
+        this.databaseService = databaseService;
+    }
+    
+    @Override
+    public boolean recordVitals(int patientId, double temperature, int heartRate, 
+                              int bloodPressureSystolic, int bloodPressureDiastolic, 
+                              int respiratoryRate) {
+        String sql = "INSERT INTO vitals (patient_id, temperature, heart_rate, " +
+                    "blood_pressure_systolic, blood_pressure_diastolic, respiratory_rate) " +
+                    "VALUES (?, ?, ?, ?, ?, ?)";
+                    
+        try (Connection conn = databaseService.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, patientId);
+            pstmt.setDouble(2, temperature);
+            pstmt.setInt(3, heartRate);
+            pstmt.setInt(4, bloodPressureSystolic);
+            pstmt.setInt(5, bloodPressureDiastolic);
+            pstmt.setInt(6, respiratoryRate);
+            
+            return pstmt.executeUpdate() > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("Error recording vitals: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    @Override
+    public Vitals getVitals(int patientId) {
+        String sql = "SELECT * FROM vitals WHERE patient_id = ? ORDER BY recorded_at DESC LIMIT 1";
+        
+        try (Connection conn = databaseService.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, patientId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                return new Vitals(
+                    rs.getInt("patient_id"),
+                    rs.getDouble("temperature"),
+                    rs.getInt("heart_rate"),
+                    rs.getInt("blood_pressure_systolic"),
+                    rs.getInt("blood_pressure_diastolic"),
+                    rs.getInt("respiratory_rate")
+                );
+            }
+            return null;
+            
+        } catch (SQLException e) {
+            System.err.println("Error getting vitals: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    @Override
+    public boolean updateVitals(int patientId, double temperature, int heartRate, 
+                              int bloodPressureSystolic, int bloodPressureDiastolic, 
+                              int respiratoryRate) {
+        String sql = "UPDATE vitals SET temperature = ?, heart_rate = ?, " +
+                    "blood_pressure_systolic = ?, blood_pressure_diastolic = ?, " +
+                    "respiratory_rate = ? WHERE patient_id = ?";
+                    
+        try (Connection conn = databaseService.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setDouble(1, temperature);
+            pstmt.setInt(2, heartRate);
+            pstmt.setInt(3, bloodPressureSystolic);
+            pstmt.setInt(4, bloodPressureDiastolic);
+            pstmt.setInt(5, respiratoryRate);
+            pstmt.setInt(6, patientId);
+            
+            return pstmt.executeUpdate() > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("Error updating vitals: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    @Override
+    public boolean deleteVitals(int patientId) {
+        String sql = "DELETE FROM vitals WHERE patient_id = ?";
+        
+        try (Connection conn = databaseService.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, patientId);
+            return pstmt.executeUpdate() > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("Error deleting vitals: " + e.getMessage());
+            return false;
+        }
+    }
+}

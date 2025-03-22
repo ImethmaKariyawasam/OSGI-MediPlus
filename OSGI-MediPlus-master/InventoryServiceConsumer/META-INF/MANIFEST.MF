@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: InventoryServiceConsumer
+Bundle-SymbolicName: InventoryServiceConsumer
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: inventoryserviceconsumer.Activator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: InventoryServiceConsumer
+Import-Package: org.osgi.framework;version="1.3.0",
+ stockservicepublisher,
+ stockshareservicepublisher,
+ supplierservicepublisher
+Bundle-ActivationPolicy: lazy
+Require-Bundle: org.eclipse.swt

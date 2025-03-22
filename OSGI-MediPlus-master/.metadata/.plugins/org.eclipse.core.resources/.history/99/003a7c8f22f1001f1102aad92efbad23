@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: PatientServicePublisher
+Bundle-SymbolicName: PatientServicePublisher
+Bundle-Version: 1.0.0.qualifier
+Bundle-Activator: com.patientPublisherService.Activator
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Automatic-Module-Name: PatientServicePublisher
+Import-Package: com.hospital.core.database,
+ org.osgi.framework;version="1.3.0"
+Bundle-ActivationPolicy: lazy

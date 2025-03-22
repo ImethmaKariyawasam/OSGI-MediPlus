@@ -1,0 +1,27 @@
+// DatabaseActivator.java
+package com.hospital.core.database;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+
+public class DatabaseServiceImplementation implements IDatabaseService {
+    private Connection connection = null;
+    
+    @Override
+    public Connection getConnection() {
+        try {
+            if(connection == null || connection.isClosed()) {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+                connection = DriverManager.getConnection(
+                    "jdbc:mysql://localhost:3306/hospital",
+                    "root",
+                    "your_password"
+                );
+                System.out.println("Database Connected!");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return connection;
+    }
+}

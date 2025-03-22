@@ -1,0 +1,27 @@
+// DatabaseActivator.java
+package com.hospital.core.database;
+
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceRegistration;
+
+public class DatabaseActivator implements BundleActivator {
+    ServiceRegistration publishServiceRegistration;
+
+    @Override
+    public void start(BundleContext context) throws Exception {
+        System.out.println("Database Publisher Started");
+        IDatabaseService databaseService = new DatabaseImpl();
+        publishServiceRegistration = context.registerService(
+            IDatabaseService.class.getName(), 
+            databaseService, 
+            null
+        );
+    }
+
+    @Override
+    public void stop(BundleContext context) throws Exception {
+        System.out.println("Database Publisher Stopped");
+        publishServiceRegistration.unregister();
+    }
+}

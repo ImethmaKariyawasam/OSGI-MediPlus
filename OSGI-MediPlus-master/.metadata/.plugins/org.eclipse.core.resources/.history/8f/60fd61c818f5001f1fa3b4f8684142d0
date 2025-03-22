@@ -1,0 +1,520 @@
+package patientserviceconsumer;
+
+import com.patientPublisherService.IPatientService;
+import com.patientPublisherService.Patient;
+import com.vitalServicePublisher.IVitalsService;
+import com.vitalServicePublisher.Vitals;
+
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.List;
+
+public class Activator implements BundleActivator {
+    private ServiceReference<?> patientServiceRef;
+    private ServiceReference<?> vitalsServiceRef;
+    private Thread cliThread;
+    private static final String DIVIDER = "══════════════════════════════════════════════════════════";
+    private static final String MENU_DIVIDER = "──────────────────────────────────────────────────────────";
+    private static final String ANSI_RESET = "\u001B[0m";
+    private static final String ANSI_BLUE = "\u001B[34m";
+    private static final String ANSI_GREEN = "\u001B[32m";
+    private static final String ANSI_YELLOW = "\u001B[33m";
+    private static final String ANSI_RED = "\u001B[31m";
+    private static final String ANSI_CYAN = "\u001B[36m";
+    private static final String ANSI_BOLD = "\u001B[1m";
+
+    @Override
+    public void start(BundleContext context) throws Exception {
+        printColoredText(ANSI_GREEN + ANSI_BOLD + "\n" + DIVIDER, true);
+        printColoredText(ANSI_GREEN + ANSI_BOLD + "🏥 Hospital Services Consumer Started", true);
+        printColoredText(ANSI_GREEN + ANSI_BOLD + DIVIDER, true);
+        
+        // Get both services
+        patientServiceRef = context.getServiceReference(IPatientService.class.getName());
+        vitalsServiceRef = context.getServiceReference(IVitalsService.class.getName());
+        
+        final IPatientService patientService = (IPatientService) context.getService(patientServiceRef);
+        final IVitalsService vitalsService = (IVitalsService) context.getService(vitalsServiceRef);
+
+        cliThread = new Thread(() -> runMainCLI(patientService, vitalsService));
+        cliThread.start();
+    }
+    
+    private void runMainCLI(IPatientService patientService, IVitalsService vitalsService) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        flushReader(reader);
+        String command;
+        
+        printColoredText(ANSI_CYAN + ANSI_BOLD + "\n" + DIVIDER, true);
+        printColoredText(ANSI_CYAN + ANSI_BOLD + "    WELCOME TO THE HOSPITAL MANAGEMENT SYSTEM", true);
+        printColoredText(ANSI_CYAN + ANSI_BOLD + DIVIDER, true);
+        printMainMenu();
+
+        while (true) {
+            printColoredText(ANSI_BOLD + "\n📋 Select service " + ANSI_CYAN + "[patients/vitals/exit]" + ANSI_RESET + ANSI_BOLD + ": ", false);
+            try {
+                command = reader.readLine().trim().toLowerCase();
+                
+                switch (command) {
+                    case "patients":
+                        runPatientCLI(patientService);
+                        printMainMenu();
+                        break;
+                    case "vitals":
+                        runVitalsCLI(vitalsService);
+                        printMainMenu();
+                        break;
+                    case "exit":
+                        printColoredText(ANSI_YELLOW + "\nExiting Hospital Management System...", true);
+                        return;
+                    default:
+                        printColoredText(ANSI_RED + "❌ Unknown service. Please select 'patients', 'vitals', or 'exit'", true);
+                }
+            } catch (IOException e) {
+                printColoredText(ANSI_RED + "Error reading input: " + e.getMessage(), true);
+            }
+        }
+    }
+
+    private void printMainMenu() {
+        printColoredText(ANSI_BLUE + "\n" + MENU_DIVIDER, true);
+        printColoredText(ANSI_BLUE + "           AVAILABLE SERVICES", true);
+        printColoredText(ANSI_BLUE + MENU_DIVIDER, true);
+        printColoredText(ANSI_CYAN + "  👤 patients " + ANSI_RESET + "- Manage patient records", true);
+        printColoredText(ANSI_CYAN + "  ❤️  vitals   " + ANSI_RESET + "- Record and track vital signs", true);
+        printColoredText(ANSI_CYAN + "  🚪 exit     " + ANSI_RESET + "- Exit the system", true);
+        printColoredText(ANSI_BLUE + MENU_DIVIDER, true);
+    }
+
+    private void runPatientCLI(IPatientService patientService) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        flushReader(reader);
+        String command;
+        
+        printColoredText(ANSI_CYAN + ANSI_BOLD + "\n" + DIVIDER, true);
+        printColoredText(ANSI_CYAN + ANSI_BOLD + "         👤 PATIENT MANAGEMENT SYSTEM", true);
+        printColoredText(ANSI_CYAN + ANSI_BOLD + DIVIDER, true);
+        printPatientMenu();
+
+        while (true) {
+            printColoredText(ANSI_BOLD + "\n📝 Enter command " + ANSI_CYAN + "[add/update/delete/get/search/back]" + ANSI_RESET + ANSI_BOLD + ": ", false);
+            try {
+                command = reader.readLine().trim();
+                if (command.equalsIgnoreCase("back")) {
+                    printColoredText(ANSI_YELLOW + "\nReturning to main menu...", true);
+                    return;
+                }
+            } catch (IOException e) {
+                printColoredText(ANSI_RED + "Error reading input: " + e.getMessage(), true);
+                e.printStackTrace();
+                continue;
+            }
+
+            try {
+                if (command.equalsIgnoreCase("add")) {
+                    printColoredText(ANSI_GREEN + ANSI_BOLD + "\n➕ ADDING NEW PATIENT", true);
+                    printColoredText(ANSI_GREEN + MENU_DIVIDER, true);
+                    Patient patient = createPatient(reader, false);
+                    boolean added = patientService.addPatient(patient);
+                    printOperationResult(added, "Patient added successfully! ✅", "Failed to add patient. ❌");
+                } else if (command.equalsIgnoreCase("update")) {
+                    printColoredText(ANSI_YELLOW + ANSI_BOLD + "\n✏️  UPDATING PATIENT", true);
+                    printColoredText(ANSI_YELLOW + MENU_DIVIDER, true);
+                    int id = readValidInt(reader, "Enter patient ID: ");
+
+                    // First, check if the patient exists
+                    String existingPatient = patientService.getPatient(id);
+                    if (existingPatient == null) {
+                        printColoredText(ANSI_RED + "❌ Error: No patient found with ID " + id, true);
+                    } else {
+                        printColoredText(ANSI_BLUE + "\n📋 Existing Patient Details:", true);
+                        printColoredText(ANSI_BLUE + existingPatient, true);
+
+                        // Proceed with updating only if the patient exists
+                        Patient patient = createPatient(reader, true);
+                        patient.setId(id); // Assign the ID for update
+                        boolean updated = patientService.updatePatient(patient);
+                        printOperationResult(updated, "Patient updated successfully! ✅", "Failed to update patient. ❌");
+                    }
+                } else if (command.equalsIgnoreCase("delete")) {
+                    printColoredText(ANSI_RED + ANSI_BOLD + "\n❌ DELETING PATIENT", true);
+                    printColoredText(ANSI_RED + MENU_DIVIDER, true);
+                    int id = readValidInt(reader, "Enter patient ID to delete: ");
+                    boolean deleted = patientService.deletePatient(id);
+                    printOperationResult(deleted, "Patient deleted successfully! ✅", "Failed to delete patient. ❌");
+                } else if (command.equalsIgnoreCase("get")) {
+                    printColoredText(ANSI_BLUE + ANSI_BOLD + "\n🔍 RETRIEVING PATIENT", true);
+                    printColoredText(ANSI_BLUE + MENU_DIVIDER, true);
+                    int id = readValidInt(reader, "Enter patient ID: ");
+                    String details = patientService.getPatient(id);
+                    if (details != null) {
+                        printColoredText(ANSI_GREEN + "\n📋 Patient Details:", true);
+                        printColoredText(ANSI_GREEN + details, true);
+                    } else {
+                        printColoredText(ANSI_RED + "❌ No patient found with ID: " + id, true);
+                    }
+                } else if (command.equalsIgnoreCase("search")) {
+                    printColoredText(ANSI_BLUE + ANSI_BOLD + "\n🔎 SEARCHING PATIENTS", true);
+                    printColoredText(ANSI_BLUE + MENU_DIVIDER, true);
+                    String term = readNonEmptyString(reader, "Enter search term: ");
+                    List<Patient> patients = patientService.searchPatients(term);
+                    if (patients.isEmpty()) {
+                        printColoredText(ANSI_YELLOW + "⚠️  No patients found matching: '" + term + "'", true);
+                    } else {
+                        printColoredText(ANSI_GREEN + "\n📋 Found " + patients.size() + " patients:", true);
+                        for (Patient p : patients) {
+                            printColoredText(ANSI_GREEN + "  " + p, true);
+                        }
+                    }
+                } else {
+                    printColoredText(ANSI_RED + "❌ Unknown command. Please try again.", true);
+                    printPatientMenu();
+                }
+            } catch (IOException e) {
+                printColoredText(ANSI_RED + "Error processing input: " + e.getMessage(), true);
+                e.printStackTrace();
+            } catch (NumberFormatException nfe) {
+                printColoredText(ANSI_RED + "❌ Invalid number format. Please try again.", true);
+            } catch (Exception e) {
+                printColoredText(ANSI_RED + "Error processing command: " + e.getMessage(), true);
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    private void printPatientMenu() {
+        printColoredText(ANSI_BLUE + "\n" + MENU_DIVIDER, true);
+        printColoredText(ANSI_BLUE + "           AVAILABLE COMMANDS", true);
+        printColoredText(ANSI_BLUE + MENU_DIVIDER, true);
+        printColoredText(ANSI_CYAN + "  ➕ add    " + ANSI_RESET + "- Add a new patient", true);
+        printColoredText(ANSI_CYAN + "  ✏️  update " + ANSI_RESET + "- Update an existing patient", true);
+        printColoredText(ANSI_CYAN + "  ❌ delete " + ANSI_RESET + "- Remove a patient", true);
+        printColoredText(ANSI_CYAN + "  🔍 get    " + ANSI_RESET + "- View patient details", true);
+        printColoredText(ANSI_CYAN + "  🔎 search " + ANSI_RESET + "- Find patients by keyword", true);
+        printColoredText(ANSI_CYAN + "  ⬅️  back   " + ANSI_RESET + "- Return to main menu", true);
+        printColoredText(ANSI_BLUE + MENU_DIVIDER, true);
+    }
+    
+    private void runVitalsCLI(IVitalsService vitalsService) {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        flushReader(reader);
+        String command;
+        
+        printColoredText(ANSI_CYAN + ANSI_BOLD + "\n" + DIVIDER, true);
+        printColoredText(ANSI_CYAN + ANSI_BOLD + "         ❤️  VITALS MANAGEMENT SYSTEM", true);
+        printColoredText(ANSI_CYAN + ANSI_BOLD + DIVIDER, true);
+        printVitalsMenu();
+
+        while (true) {
+            printColoredText(ANSI_BOLD + "\n📝 Enter command " + ANSI_CYAN + "[record/get/update/delete/back]" + ANSI_RESET + ANSI_BOLD + ": ", false);
+            try {
+                command = reader.readLine().trim();
+                if (command.equalsIgnoreCase("back")) {
+                    printColoredText(ANSI_YELLOW + "\nReturning to main menu...", true);
+                    return;
+                }
+            } catch (IOException e) {
+                printColoredText(ANSI_RED + "Error reading input: " + e.getMessage(), true);
+                continue;
+            }
+
+            try {
+                if (command.equalsIgnoreCase("record")) {
+                    printColoredText(ANSI_GREEN + ANSI_BOLD + "\n📊 RECORDING NEW VITALS", true);
+                    printColoredText(ANSI_GREEN + MENU_DIVIDER, true);
+                    int patientId = readValidInt(reader, "Enter patient ID: ");
+                    Vitals vitals = createVitals(reader, patientId);
+                    boolean recorded = vitalsService.recordVitals(patientId, vitals);
+                    printOperationResult(recorded, "Vitals recorded successfully! ✅", "Failed to record vitals. ❌");
+                    
+                } else if (command.equalsIgnoreCase("get")) {
+                    printColoredText(ANSI_BLUE + ANSI_BOLD + "\n🔍 RETRIEVING VITALS", true);
+                    printColoredText(ANSI_BLUE + MENU_DIVIDER, true);
+                    int patientId = readValidInt(reader, "Enter patient ID: ");
+                    Vitals vitals = vitalsService.getVitals(patientId);
+                    if (vitals != null) {
+                        displayVitals(vitals);
+                    } else {
+                        printColoredText(ANSI_YELLOW + "⚠️  No vitals found for patient ID: " + patientId, true);
+                    }
+
+                } else if (command.equalsIgnoreCase("update")) {
+                    printColoredText(ANSI_YELLOW + ANSI_BOLD + "\n✏️  UPDATING VITALS", true);
+                    printColoredText(ANSI_YELLOW + MENU_DIVIDER, true);
+                    int patientId = readValidInt(reader, "Enter patient ID: ");
+
+                    // First, check if vitals exist
+                    Vitals existingVitals = vitalsService.getVitals(patientId);
+                    if (existingVitals == null) {
+                        printColoredText(ANSI_RED + "❌ Error: No vitals found for patient ID " + patientId, true);
+                    } else {
+                        printColoredText(ANSI_BLUE + "\n📋 Existing Vitals:", true);
+                        displayVitals(existingVitals);
+
+                        // Proceed with update
+                        Vitals updatedVitals = createVitals(reader, patientId);
+                        boolean updated = vitalsService.updateVitals(patientId, updatedVitals);
+                        printOperationResult(updated, "Vitals updated successfully! ✅", "Failed to update vitals. ❌");
+                    }
+
+                } else if (command.equalsIgnoreCase("delete")) {
+                    printColoredText(ANSI_RED + ANSI_BOLD + "\n❌ DELETING VITALS", true);
+                    printColoredText(ANSI_RED + MENU_DIVIDER, true);
+                    int patientId = readValidInt(reader, "Enter patient ID: ");
+
+                    // Check if vitals exist before deleting
+                    Vitals existingVitals = vitalsService.getVitals(patientId);
+                    if (existingVitals == null) {
+                        printColoredText(ANSI_RED + "❌ Error: No vitals found for patient ID " + patientId, true);
+                    } else {
+                        boolean deleted = vitalsService.deleteVitals(patientId);
+                        printOperationResult(deleted, "Vitals deleted successfully! ✅", "Failed to delete vitals. ❌");
+                    }
+
+                } else {
+                    printColoredText(ANSI_RED + "❌ Unknown command. Please try again.", true);
+                    printVitalsMenu();
+                }
+            } catch (IOException e) {
+                printColoredText(ANSI_RED + "Error processing input: " + e.getMessage(), true);
+            } catch (NumberFormatException nfe) {
+                printColoredText(ANSI_RED + "❌ Invalid number format. Please try again.", true);
+            } catch (Exception e) {
+                printColoredText(ANSI_RED + "Error processing command: " + e.getMessage(), true);
+            }
+        }
+    }
+    
+    private void printVitalsMenu() {
+        printColoredText(ANSI_BLUE + "\n" + MENU_DIVIDER, true);
+        printColoredText(ANSI_BLUE + "           AVAILABLE COMMANDS", true);
+        printColoredText(ANSI_BLUE + MENU_DIVIDER, true);
+        printColoredText(ANSI_CYAN + "  📊 record " + ANSI_RESET + "- Record new vital signs", true);
+        printColoredText(ANSI_CYAN + "  🔍 get    " + ANSI_RESET + "- View patient vitals", true);
+        printColoredText(ANSI_CYAN + "  ✏️  update " + ANSI_RESET + "- Update existing vitals", true);
+        printColoredText(ANSI_CYAN + "  ❌ delete " + ANSI_RESET + "- Remove patient vitals", true);
+        printColoredText(ANSI_CYAN + "  ⬅️  back   " + ANSI_RESET + "- Return to main menu", true);
+        printColoredText(ANSI_BLUE + MENU_DIVIDER, true);
+    }
+    
+    private void printOperationResult(boolean success, String successMessage, String failureMessage) {
+        if (success) {
+            printColoredText(ANSI_GREEN + "\n" + successMessage, true);
+        } else {
+            printColoredText(ANSI_RED + "\n" + failureMessage, true);
+        }
+    }
+    
+    private void printColoredText(String text, boolean newLine) {
+        if (newLine) {
+            System.out.println(text + ANSI_RESET);
+        } else {
+            System.out.print(text + ANSI_RESET);
+        }
+    }
+    
+    // Helper method to create a new Vitals object from user input
+    private Vitals createVitals(BufferedReader reader, int patientId) throws IOException {
+        double temperature = readValidTemperature(reader, "Enter temperature (°C): ");
+        int heartRate = readValidHeartRate(reader, "Enter heart rate (bpm): ");
+        int systolic = readValidBloodPressure(reader, "Enter systolic blood pressure: ");
+        int diastolic = readValidBloodPressure(reader, "Enter diastolic blood pressure: ");
+        int respiratoryRate = readValidRespiratoryRate(reader, "Enter respiratory rate (breaths/min): ");
+
+        return new Vitals(temperature, heartRate, systolic, diastolic, respiratoryRate);
+    }
+    
+    // Helper method to create a new Patient object from user input
+    private Patient createPatient(BufferedReader reader, boolean isUpdate) throws IOException {
+        String name = readNonEmptyString(reader, "Enter name: ");
+        int age = readValidAge(reader, "Enter age: ");
+        String gender = readValidGender(reader, "Enter gender (Male/Female/Other): ");
+        String contact = readValidContact(reader, "Enter contact number: ");
+        System.out.print("Enter medical history (optional): ");
+        String history = reader.readLine().trim();
+        
+        return isUpdate 
+            ? new Patient(0, name, age, gender, contact, history) // ID will be set later
+            : new Patient(name, age, gender, contact, history);
+    }
+
+    private void displayVitals(Vitals vitals) {
+        printColoredText(ANSI_GREEN + "\n📋 Vitals Information:", true);
+        printColoredText(ANSI_GREEN + "  🌡  Temperature: " + vitals.getTemperature() + "°C", true);
+        printColoredText(ANSI_GREEN + "  ❤️  Heart Rate: " + vitals.getHeartRate() + " bpm", true);
+        printColoredText(ANSI_GREEN + "  🩸 Blood Pressure: " + vitals.getBloodPressureSystolic() + "/" + 
+                          vitals.getBloodPressureDiastolic() + " mmHg", true);
+        printColoredText(ANSI_GREEN + "  🫁 Respiratory Rate: " + vitals.getRespiratoryRate() + " breaths/min", true);
+    }
+
+    private double readValidTemperature(BufferedReader reader, String prompt) throws IOException {
+        double temp;
+        while (true) {
+            printColoredText(ANSI_BOLD + prompt, false);
+            try {
+                temp = Double.parseDouble(reader.readLine().trim());
+                if (temp < 35 || temp > 42) {
+                    printColoredText(ANSI_YELLOW + "⚠️  Temperature must be between 35°C and 42°C", true);
+                    continue;
+                }
+                return temp;
+            } catch (NumberFormatException e) {
+                printColoredText(ANSI_RED + "❌ Invalid temperature. Please enter a valid number.", true);
+            }
+        }
+    }
+
+    private int readValidHeartRate(BufferedReader reader, String prompt) throws IOException {
+        int rate;
+        while (true) {
+            printColoredText(ANSI_BOLD + prompt, false);
+            try {
+                rate = Integer.parseInt(reader.readLine().trim());
+                if (rate < 30 || rate > 200) {
+                    printColoredText(ANSI_YELLOW + "⚠️  Heart rate must be between 30 and 200 bpm", true);
+                    continue;
+                }
+                return rate;
+            } catch (NumberFormatException e) {
+                printColoredText(ANSI_RED + "❌ Invalid heart rate. Please enter a valid number.", true);
+            }
+        }
+    }
+
+    private int readValidBloodPressure(BufferedReader reader, String prompt) throws IOException {
+        int pressure;
+        while (true) {
+            printColoredText(ANSI_BOLD + prompt, false);
+            try {
+                pressure = Integer.parseInt(reader.readLine().trim());
+                if (pressure < 40 || pressure > 250) {
+                    printColoredText(ANSI_YELLOW + "⚠️  Blood pressure must be between 40 and 250 mmHg", true);
+                    continue;
+                }
+                return pressure;
+            } catch (NumberFormatException e) {
+                printColoredText(ANSI_RED + "❌ Invalid blood pressure. Please enter a valid number.", true);
+            }
+        }
+    }
+
+    private int readValidRespiratoryRate(BufferedReader reader, String prompt) throws IOException {
+        int rate;
+        while (true) {
+            printColoredText(ANSI_BOLD + prompt, false);
+            try {
+                rate = Integer.parseInt(reader.readLine().trim());
+                if (rate < 8 || rate > 40) {
+                    printColoredText(ANSI_YELLOW + "⚠️  Respiratory rate must be between 8 and 40 breaths/min", true);
+                    continue;
+                }
+                return rate;
+            } catch (NumberFormatException e) {
+                printColoredText(ANSI_RED + "❌ Invalid respiratory rate. Please enter a valid number.", true);
+            }
+        }
+    }
+    
+    // Helper method for reading a non-empty string
+    private String readNonEmptyString(BufferedReader reader, String prompt) throws IOException {
+        String input;
+        do {
+            printColoredText(ANSI_BOLD + prompt, false);
+            input = reader.readLine().trim();
+            if (input.isEmpty()) {
+                printColoredText(ANSI_YELLOW + "⚠️  Input cannot be empty. Please try again.", true);
+            }
+        } while (input.isEmpty());
+        return input;
+    }
+
+    // Helper method for reading a valid integer (e.g., for ID)
+    private int readValidInt(BufferedReader reader, String prompt) throws IOException {
+        int value;
+        while (true) {
+            printColoredText(ANSI_BOLD + prompt, false);
+            try {
+                value = Integer.parseInt(reader.readLine().trim());
+                if (value < 1) {
+                    printColoredText(ANSI_YELLOW + "⚠️  Value must be greater than zero.", true);
+                    continue;
+                }
+                return value;
+            } catch (NumberFormatException e) {
+                printColoredText(ANSI_RED + "❌ Invalid number. Please enter a valid integer.", true);
+            }
+        }
+    }
+
+    // Helper method for reading a valid age
+    private int readValidAge(BufferedReader reader, String prompt) throws IOException {
+        int age;
+        while (true) {
+            printColoredText(ANSI_BOLD + prompt, false);
+            try {
+                age = Integer.parseInt(reader.readLine().trim());
+                if (age < 0 || age > 150) {
+                    printColoredText(ANSI_YELLOW + "⚠️  Please enter a valid age between 0 and 150.", true);
+                    continue;
+                }
+                return age;
+            } catch (NumberFormatException e) {
+                printColoredText(ANSI_RED + "❌ Invalid age. Please enter a valid integer.", true);
+            }
+        }
+    }
+
+    // Helper method for reading a valid gender
+    private String readValidGender(BufferedReader reader, String prompt) throws IOException {
+        String gender;
+        while (true) {
+            printColoredText(ANSI_BOLD + prompt, false);
+            gender = reader.readLine().trim();
+            if (gender.equalsIgnoreCase("Male") || gender.equalsIgnoreCase("Female") || gender.equalsIgnoreCase("Other")) {
+                return gender;
+            }
+            printColoredText(ANSI_YELLOW + "⚠️  Invalid gender. Please enter Male, Female, or Other.", true);
+        }
+    }
+
+    // Helper method for reading a valid contact number
+    private String readValidContact(BufferedReader reader, String prompt) throws IOException {
+        String contact;
+        while (true) {
+            printColoredText(ANSI_BOLD + prompt, false);
+            contact = reader.readLine().trim();
+            if (contact.matches("\\d{10,15}")) {
+                return contact;
+            }
+            printColoredText(ANSI_YELLOW + "⚠️  Invalid contact number. It must be 10 to 15 digits.", true);
+        }
+    }
+    
+    private void flushReader(BufferedReader reader) {
+        try {
+            while (reader.ready()) {
+                reader.read();
+            }
+        } catch (IOException e) {
+            printColoredText(ANSI_RED + "Error flushing input buffer: " + e.getMessage(), true);
+        }
+    }
+    
+    @Override
+    public void stop(BundleContext context) throws Exception {
+        printColoredText(ANSI_RED + ANSI_BOLD + "\n" + DIVIDER, true);
+        printColoredText(ANSI_RED + ANSI_BOLD + "🏥 Hospital Services Consumer Stopped", true);
+        printColoredText(ANSI_RED + ANSI_BOLD + DIVIDER, true);
+        
+        if (cliThread != null && cliThread.isAlive()) {
+            cliThread.interrupt();
+        }
+        context.ungetService(patientServiceRef);
+        context.ungetService(vitalsServiceRef);
+    }
+}

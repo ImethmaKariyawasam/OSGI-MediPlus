@@ -1,0 +1,9 @@
+package com.patientPublisherService;
+
+public interface IPatientService {
+ boolean addPatient(String name, int age, String gender, String contact, String history);
+ boolean updatePatient(int id, String name, int age, String gender, String contact, String history);
+ boolean deletePatient(int id);
+ String getPatient(int id);
+ String searchPatients(String term);
+}
